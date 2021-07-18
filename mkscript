@@ -1,0 +1,66 @@
+#!/bin/bash
+# Usage:
+#   mkscript [options] 'scriptname'
+# options:
+#   -t,--type 'type':  one of: bash (default if -t/--type not passed) sh perl python ruby
+# outputs a file named 'scriptname' and makes it executable. The file contains
+# a shebang on the first line corresponding to 'type' if specified. If no type is specified,
+# bash is used as the default:
+#
+#   $ mkscript -t sh my_sh_script
+#   $ cat my_sh_script
+#   #!/usr/bin/env sh
+#   $
+
+set -Ceu
+
+PROGNAME=$(basename $0)
+
+function _die
+{
+    echo "${PROGNAME}: ${1:-"Unexplained Error!"}" 1>&2
+    exit 1
+}
+
+function _usage() {
+    echo "Usage:"
+    echo -e "\t\$ ${PROGNAME} [-t/--type TYPE] SCRIPTNAME"
+    echo
+    usage_str="SCRIPTNAME must either be the first and only parameter, or the third parameter if the first parameter is one of '-t' OR '--type', the second parameter must be the name of a command such as (with or without quotes) 'sh', 'perl', 'python', etc... If only SCRIPTNAME is specified the script type defaults to 'bash'. If no parameters are specified, a bash script is created with 'new_script$RANDOM.sh'. The digits are random to (hopefully) get a unique filename"
+    echo "$usage_str" | fmt --width=80
+    exit 2
+} >&2
+
+function create_script() {
+    filename="${1:-$SCRIPTNAME}"
+    cmd="${2:-$CMD}"
+    hashbang="#!/usr/bin/env $cmd" 
+    echo "Creating a new $cmd script named $filename"
+    echo "$hashbang" > $filename || echo "could not create ${filename}" exit 1
+    [[ -f "$filename" ]] && chmod +x "$filename"
+    [[ -x "$filename" ]] && exit 0
+}
+
+CMD='bash'
+SCRIPTNAME="new_script${RANDOM}.sh"
+
+if [[ $# == 0 ]]; then
+    _usage
+fi
+
+if [[ $# == 1 && "${1}" == -* ]]; then
+    _usage
+elif [[ $# == 1 && "${1}" != -* ]]; then
+    SCRIPTNAME="$1"
+elif [[ $# == 2 ]]; then
+    _usage
+elif [[ $# == 3 && "${1}" == -* ]]; then
+    shift
+    CMD="$1"
+    shift
+    SCRIPTNAME="$1"
+else
+    echo "bad arguments"
+    _usage
+fi
+create_script || echo "Could not create script!"
